@@ -151,6 +151,7 @@ cat /etc/nginx/nginx.conf
 
 server {
     listen 443 ssl;
+    
     server_name kiosktest.shop;
 
     # ✅ Let's Encrypt 인증서 적용
