@@ -1,5 +1,14 @@
 ## 🛠️ Kiosk User 화면 배포 및 TailwindCSS 설정 가이드
 
+/home/ubuntu/kiosk-system/
+├── static/
+│   ├── user/          # 유저 프론트엔드 빌드 결과
+│   └── admin/         # 관리자 프론트엔드 빌드 결과
+├── uploads/
+│   └── menu/          # 사용자 메뉴 이미지 업로드 경로
+├── 
+└── kiosk-backend.jar  # Spring Boot 백엔드 실행 파일
+
 ### 📦 1. User 프로젝트 빌드
 
 ```bash
@@ -59,6 +68,17 @@ npm uninstall tailwindcss
 npm install -D tailwindcss@3.2.7 postcss autoprefixer
 npx tailwindcss init -p
 ```
+
+왜 npm install -D 안 썼는가?
+tailwindcss@4.x는 ESM 기반이라 type: "module"과 충돌하는 문제가 있음.
+
+npx tailwindcss init -p가 실행되지 않거나 "could not determine executable" 오류 발생.
+
+해결 방법: TailwindCSS 3.2.7로 다운그레이드
+
+npm uninstall tailwindcss
+npm install -D tailwindcss@3.2.7 postcss autoprefixer
+npx tailwindcss init -p
 
 #### 📂 설정 파일 확인
 
@@ -132,7 +152,9 @@ React에서 사용하는 **SPA(Single Page Application)**의 index.html로 라�
 모든 HTTP 접속을 HTTPS로 강제 리디렉션 하기 위해.
 
 /etc/nginx/sites-available/kiosktest.shop 설정 내용 
+
 cat /etc/nginx/nginx.conf
+
 
 
 server {
@@ -189,5 +211,56 @@ server {
     server_name kiosktest.shop;
     return 301 https://$host$request_uri;
 }
+
+ 주의할 점
+🔒 React에서 만든 결과물은 vite build 후 dist/ 내용을 다음 위치로 복사해야 함:
+
+유저 화면 배포 순서 (Vite + React)
+1️⃣ 빌드 실행 (로컬에서)
+npm run build
+결과물은 dist/ 폴더에 생성됩니다.
+
+2️⃣ 서버로 파일 복사 (Git Bash )
+scp -i /경로/Key.pem -r dist/* ubuntu@kiosktest.shop:/home/ubuntu/kiosk-system/static/user/
+👉 권한 문제 방지를 위해 바로 이어서 다음 명령 실행:
+
+3️⃣ 서버에서 권한 재설정
+
+sudo chown -R www-data:www-data /home/ubuntu/kiosk-system/static/user
+❗ 이유 정리
+명령어	이유
+cp -r dist/* ...	React로 만든 정적 페이지들을 Nginx가 서빙하는 위치로 복사
+chown -R www-data	Nginx는 www-data 권한으로 실행되므로, 파일 접근 오류 방지
+
+1. sudo cp -r dist/* /home/ubuntu/kiosk-system/static/user/
+cp: 파일을 복사(copy)
+
+-r: 폴더 전체를 복사할 때 사용 (recursively)
+
+dist/: React 프로젝트를 빌드한 결과 폴더
+
+*: dist 폴더 안에 있는 모든 파일과 폴더
+
+/home/ubuntu/kiosk-system/static/user/: 웹 서버(Nginx)가 유저 화면을 불러오는 위치
+
+👉 즉, 빌드한 유저 화면을 서버가 보는 폴더로 복사하는 명령어입니다.
+
+✅ 2. sudo chown -R www-data:www-data /home/ubuntu/kiosk-system/static/user
+chown: 소유자(owner)를 바꿔주는 명령
+
+-R: 해당 폴더뿐 아니라 그 안의 모든 파일까지 적용 (recursive)
+
+www-data:www-data: 사용자:그룹 을 모두 www-data로 변경
+
+/home/ubuntu/kiosk-system/static/user: 변경 대상 폴더
+
+👉 즉, 서버(Nginx)가 이 폴더에 접근할 수 있도록 '주인'을 바꿔주는 것입니다.
+
+🧠 왜 필요할까?
+React 앱은 정적 파일(index.html, js, css 등)을 Nginx가 대신 보여줍니다.
+
+그런데 퍼미션이 ubuntu인 경우, Nginx가 접근을 못 하게 될 수 있어요.
+
+그래서 www-data로 권한을 바꿔주면 Nginx가 문제없이 읽어서 출력할 수 있습니다.
 
 
