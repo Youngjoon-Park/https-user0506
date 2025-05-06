@@ -118,3 +118,76 @@ dev 서버는 Vite 내부적으로 리소스를 가상 경로로 처리하지만
 npm run build
 scp -i pem키 -r dist/* ubuntu@서버:/home/ubuntu/kiosk-system/static/user/
 
+Nginx 설정 목적 및 구성 요약
+이 설정은 다음과 같은 목적을 가지고 구성되었습니다:
+
+https://kiosktest.shop/ 접속 시 사용자(유저) 화면을 보여주기 위해.
+
+https://kiosktest.shop/admin 접속 시 관리자 화면을 보여주기 위해.
+
+정적 자산(/assets/)과 업로드 이미지(/uploads/) 경로를 정확히 분리해서 처리.
+
+React에서 사용하는 **SPA(Single Page Application)**의 index.html로 라우팅을 처리하기 위해.
+
+모든 HTTP 접속을 HTTPS로 강제 리디렉션 하기 위해.
+
+/etc/nginx/sites-available/kiosktest.shop 설정 내용 
+cat /etc/nginx/nginx.conf
+
+
+server {
+    listen 443 ssl;
+    server_name kiosktest.shop;
+
+    ssl_certificate /etc/letsencrypt/live/kiosktest.shop/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/kiosktest.shop/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    # ✅ 루트(/) → 유저 화면 (React 기반 SPA)
+    location / {
+        root /home/ubuntu/kiosk-system/static/user;
+        index index.html;
+        try_files $uri $uri/ /index.html;
+    }
+
+    # ✅ /user → / 리디렉션 처리 (중복 방지용)
+    location = /user {
+        return 301 /;
+    }
+
+    # ✅ 유저 자산 파일 경로 (/user/assets/)
+    location /user/assets/ {
+        alias /home/ubuntu/kiosk-system/static/user/assets/;
+    }
+
+    # ✅ 관리자 페이지 (React SPA)
+    location /admin {
+        root /home/ubuntu/kiosk-system/static;
+        index index.html;
+        try_files $uri $uri/ /admin/index.html;
+    }
+
+    # ✅ API는 백엔드로 프록시
+    location /api/ {
+        proxy_pass http://localhost:8081/api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # ✅ 업로드 파일 접근 경로 (/uploads/)
+    location /uploads/ {
+        alias /home/ubuntu/kiosk-system/uploads/;
+    }
+}
+
+# ✅ HTTP → HTTPS 리디렉션 처리
+server {
+    listen 80;
+    server_name kiosktest.shop;
+    return 301 https://$host$request_uri;
+}
+
+
