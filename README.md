@@ -95,7 +95,26 @@ sudo systemctl reload nginx
 * ESM 기반 Tailwind v4는 기존 Vite/Node 환경과 충돌 가능성 높음 → v3.x 권장
 * 업로드 후 반드시 권한 재조정 필수
 
----
+❌ npm run dev 사용 금지 이유
+❗ 이유 1. Vite dev 서버는 localhost에서만 작동
+npm run dev는 개발용 서버(http://localhost:5173)를 띄워서 개발자 브라우저에서만 접근 가능합니다.
 
-이 가이드는 `kiosk-frontend-user` 프로젝트를 기준으로 작성되었습니다.
+실제 키오스크처럼 외부 접속(https://kiosktest.shop)이 필요한 상황에서는 작동하지 않습니다.
+
+❗ 이유 2. 정적 배포 경로(/static/user/)와 완전히 다름
+dev 서버는 Vite 내부적으로 리소스를 가상 경로로 처리하지만,
+배포는 dist/index.html, dist/assets/를 정적으로 업로드해야 합니다.
+
+그래서 npm run build 결과물만 사용해야 이미지·JS·CSS가 엔진엑스(nginx)로 연결됩니다.
+
+❗ 이유 3. 이전에 dev를 사용해 배포가 꼬여서 '인증번호 화면'만 나왔음
+실제 npm run dev로 실행된 화면을 그대로 배포했더니,
+오래된 index.html + 캐시된 리소스로 인해 인증번호 화면이 반복 출력되었습니다.
+
+/user/index.html이 vite dev 기준으로 렌더링되면서 오류 발생했습니다.
+
+✅ 반드시 npm run build → scp로 업로드해야만 동작
+
+npm run build
+scp -i pem키 -r dist/* ubuntu@서버:/home/ubuntu/kiosk-system/static/user/
 
