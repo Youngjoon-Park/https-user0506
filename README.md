@@ -153,36 +153,37 @@ server {
     listen 443 ssl;
     server_name kiosktest.shop;
 
+    # ✅ Let's Encrypt 인증서 적용
     ssl_certificate /etc/letsencrypt/live/kiosktest.shop/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/kiosktest.shop/privkey.pem;
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
-    # ✅ 루트(/) → 유저 화면 (React 기반 SPA)
+    # ✅ [유저화면] 루트(/) → React SPA (정적 빌드된 index.html 제공)
     location / {
         root /home/ubuntu/kiosk-system/static/user;
         index index.html;
         try_files $uri $uri/ /index.html;
     }
 
-    # ✅ /user → / 리디렉션 처리 (중복 방지용)
+    # ✅ /user → / 로 리디렉션 (같은 페이지 중복방지)
     location = /user {
         return 301 /;
     }
 
-    # ✅ 유저 자산 파일 경로 (/user/assets/)
+    # ✅ [유저 정적 자산] JS, CSS, 이미지 등 /user/assets/
     location /user/assets/ {
         alias /home/ubuntu/kiosk-system/static/user/assets/;
     }
 
-    # ✅ 관리자 페이지 (React SPA)
+    # ✅ [관리자화면] /admin → 관리자 React SPA
     location /admin {
         root /home/ubuntu/kiosk-system/static;
         index index.html;
         try_files $uri $uri/ /admin/index.html;
     }
 
-    # ✅ API는 백엔드로 프록시
+    # ✅ [API 프록시] → Spring Boot 백엔드 서버로 연결
     location /api/ {
         proxy_pass http://localhost:8081/api/;
         proxy_set_header Host $host;
@@ -191,18 +192,19 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    # ✅ 업로드 파일 접근 경로 (/uploads/)
+    # ✅ [업로드 파일] 이미지 등 정적 파일 접근 허용
     location /uploads/ {
         alias /home/ubuntu/kiosk-system/uploads/;
     }
 }
 
-# ✅ HTTP → HTTPS 리디렉션 처리
+# ✅ HTTP 접속 시 → HTTPS로 리디렉션
 server {
     listen 80;
     server_name kiosktest.shop;
     return 301 https://$host$request_uri;
 }
+
 
  주의할 점
 🔒 React에서 만든 결과물은 vite build 후 dist/ 내용을 다음 위치로 복사해야 함:
