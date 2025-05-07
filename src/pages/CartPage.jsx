@@ -1,102 +1,162 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
-const CartPage = () => {
+function CartPage({ cartItems, updateQuantity, removeItem, clearCart }) {
   const navigate = useNavigate();
-  const [cartItems, setCartItems] = useState([]);
 
-  useEffect(() => {
-    const saved = localStorage.getItem('cartItems');
-    if (saved) {
-      const parsed = JSON.parse(saved).map((item) => ({
-        ...item,
-        quantity: 1,
-      }));
-      setCartItems(parsed);
-    }
-  }, []);
-
-  const updateQuantity = (index, delta) => {
-    setCartItems((prev) => {
-      const updated = [...prev];
-      updated[index].quantity += delta;
-      if (updated[index].quantity < 1) updated[index].quantity = 1;
-      return updated;
-    });
-  };
-
-  const total = cartItems.reduce(
+  const totalPrice = cartItems.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0
   );
 
   const handleOrder = () => {
-    localStorage.removeItem('cartItems');
-    navigate('/complete');
+    if (cartItems.length === 0) {
+      alert('장바구니가 비어 있습니다.');
+      return;
+    }
+    localStorage.setItem('cartItems', JSON.stringify(cartItems));
+    navigate('/processing');
   };
 
   return (
-    <div className="p-6">
-      <h1 className="text-3xl font-bold mb-6 text-center">🛒 장바구니</h1>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {cartItems.map((item, idx) => (
-          <div
-            key={idx}
-            className="bg-white rounded-2xl shadow-md p-4 flex flex-col items-center justify-between"
-          >
-            {/* 썸네일 이미지 */}
-            <img
-              src={item.image}
-              alt={item.name}
-              className="w-20 h-20 object-cover rounded mb-3"
-            />
-            <h2 className="text-lg font-semibold mb-1 text-center">
-              {item.name}
-            </h2>
-            <p className="text-sm text-gray-600 mb-2">
-              {item.price.toLocaleString()}원
-            </p>
-
-            {/* 수량 조절 */}
-            <div className="flex items-center gap-2 mb-2">
-              <button
-                onClick={() => updateQuantity(idx, -1)}
-                className="w-7 h-7 bg-gray-300 rounded-full text-base font-bold"
-              >
-                -
-              </button>
-              <span className="text-lg">{item.quantity}</span>
-              <button
-                onClick={() => updateQuantity(idx, 1)}
-                className="w-7 h-7 bg-gray-300 rounded-full text-base font-bold"
-              >
-                +
-              </button>
-            </div>
-
-            {/* 항목별 합계 */}
-            <div className="text-center font-medium text-gray-700">
-              {(item.price * item.quantity).toLocaleString()}원
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-8 text-right text-2xl font-bold">
-        총합: {total.toLocaleString()}원
-      </div>
-
-      <div className="mt-6 text-center">
+    <>
+      {/* ✅ 상단 내비게이션 */}
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          backgroundColor: '#fff',
+          padding: '12px 20px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
+          zIndex: 1000,
+        }}
+      >
         <button
-          onClick={handleOrder}
-          className="bg-green-600 hover:bg-green-700 text-white px-10 py-4 text-lg rounded-2xl transition-all"
+          onClick={() => navigate('/select')}
+          style={{ fontSize: '18px', fontWeight: 'bold' }}
         >
-          ✅ 주문하기
+          🏠 홈
+        </button>
+        <button
+          onClick={() => navigate('/menu')}
+          style={{ fontSize: '18px', fontWeight: 'bold' }}
+        >
+          ⬅ 뒤로
         </button>
       </div>
-    </div>
+
+      {/* ✅ 본문 */}
+      <div style={{ padding: '90px 20px 40px' }}>
+        <h2 style={{ fontSize: '24px', marginBottom: '20px' }}>🛒 장바구니</h2>
+
+        {cartItems.length === 0 ? (
+          <p>장바구니가 비어 있습니다.</p>
+        ) : (
+          <div>
+            <ul style={{ listStyle: 'none', padding: 0 }}>
+              {cartItems.map((item) => (
+                <li
+                  key={item.id}
+                  style={{
+                    marginBottom: '15px',
+                    borderBottom: '1px solid #ddd',
+                    paddingBottom: '10px',
+                  }}
+                >
+                  <strong>{item.name}</strong> <br />
+                  {item.price.toLocaleString()}원 × {item.quantity}개 ={' '}
+                  <strong>
+                    {(item.price * item.quantity).toLocaleString()}원
+                  </strong>
+                  <div style={{ marginTop: '5px' }}>
+                    <button onClick={() => updateQuantity(item.id, 1)}>
+                      ➕
+                    </button>
+                    <button
+                      onClick={() => updateQuantity(item.id, -1)}
+                      disabled={item.quantity <= 1}
+                    >
+                      ➖
+                    </button>
+                    <button onClick={() => removeItem(item.id)}>❌</button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            <h3 style={{ marginTop: '20px', fontSize: '20px' }}>
+              💰 총 합계:{' '}
+              <span style={{ color: 'green', fontWeight: 'bold' }}>
+                {totalPrice.toLocaleString()}원
+              </span>
+            </h3>
+
+            {/* ✅ 이쁘게 만든 버튼 */}
+            <div
+              style={{
+                marginTop: '20px',
+                display: 'flex',
+                gap: '16px',
+                justifyContent: 'center',
+              }}
+            >
+              <button
+                onClick={clearCart}
+                style={{
+                  padding: '14px 24px',
+                  backgroundColor: '#f44336',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '12px',
+                  fontWeight: 'bold',
+                  fontSize: '18px',
+                  cursor: 'pointer',
+                }}
+              >
+                🧹 장바구니 비우기
+              </button>
+
+              <button
+                onClick={handleOrder}
+                style={{
+                  padding: '14px 24px',
+                  backgroundColor: '#4CAF50',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '12px',
+                  fontWeight: 'bold',
+                  fontSize: '18px',
+                  cursor: 'pointer',
+                }}
+              >
+                ✅ 주문하기
+              </button>
+            </div>
+
+            {/* ✅ 주문 내역 표시 */}
+            <div style={{ marginTop: '30px' }}>
+              <h4 style={{ fontWeight: 'bold', fontSize: '18px' }}>
+                🧾 주문 내역:
+              </h4>
+              <ul style={{ marginTop: '10px' }}>
+                {cartItems.map((item) => (
+                  <li key={item.id}>
+                    {item.name} - {item.quantity}개 /{' '}
+                    {(item.price * item.quantity).toLocaleString()}원
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
   );
-};
+}
 
 export default CartPage;
